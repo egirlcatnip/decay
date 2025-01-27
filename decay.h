@@ -81,6 +81,8 @@ inline void println(const char *format, ...) {
                 break;
               }
               case 'f': {
+                double num = va_arg(args, double);
+                printf("%.*f", 2, num);
                 break;
               }
               }
