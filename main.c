@@ -1,15 +1,10 @@
 #include "decay.h"
-#include <stdio.h>
 
 int main() {
-  i32 sixty_nine = 69;
-  i32 large = 987654321;
-  i32 max_i32 = I32_MAX;
-  i32 min_i32 = I32_MIN;
-  u32 max_u32 = U32_MAX;
-
+  i32 num = 256;
   f32 pi = 3.1415f;
   f64 e = 2.718281828459045;
+  f128 phi = 1.618033988749895;
   char *world = "World!";
 
   // Basic string printing
@@ -18,47 +13,54 @@ int main() {
   println("");
 
   // Mixed types
-  println("Mixed types:  \n\
-            i32: {i32}   \n\
-            f64: {f64.5} \n\
-            String: {s}  \n\
-            u32: {u32}   \n\
+  println("Mixed:      \n\
+          i32: {i32}   \n\
+          u8: {u8}     \n\
+          f64: {f64.5} \n\
+          String: {s}  \n\
 ",
-          -42, 3.1415926535, "Decay", 4294967295U);
-  println("");
-
-  // Integer printing
-  println("+69:              \t{i32}", sixty_nine);
-  println("-69:              \t{i32}", -sixty_nine);
+          -num, (u8)num - 128, pi, "Decay");
   println("");
 
   // Floating-point printing
-  println("f32 default:      \t{f32}", pi);
-  println("f32 precision(3): \t{f32.3}", pi);
-  println("f64 default:      \t{f64}", e);
-  println("f64 precision(9): \t{f64.9}", e);
+  println("f32 default:        \t{f32}", 1.0);
+  println("f32 default:        \t{f32}", pi);
+  println("f32 precision(3):   \t{f32.3}", pi);
+  println("f64 default:        \t{f64}", e);
+  println("f64 precision(6):   \t{f64.6}", e);
+  println("f128 default:       \t{f128}", phi);
+  println("f128 precision(9):  \t{f128.9}", phi);
   println("");
 
   // Pointer printing
-  void *ptr = &sixty_nine;
-  println("Pointer lower:    \t{p}", ptr);
-  println("Pointer upper:    \t{P}", ptr);
-  printf("System printf:    \t%p\n", ptr);
+  void *ptr = &num;
+  println("*ptr lower:          \t{p}", ptr);
+  println("*ptr upper:          \t{P}", ptr);
   println("");
 
   // Hexadecimal printing
-  println("x32:              \t{x32}", large);
-  println("X64:              \t{X64}", (u64)large);
-  printf("System hex:       \t%x\n", large);
+  println("x8:  (u8)123");
+  println("{x8}", (u8)123);
+  println("X16: (u16)12345");
+  println("{X16}", (u16)12345);
+  println("x32: (u32)1234567");
+  println("{x32}", (u32)1234567);
+  println("X64: (u64)1234567890");
+  println("{X64}", (u64)1234567890);
   println("");
 
   // Binary printing
-  println("b32:              \t{b32}", large);
-  println("b64:              \t{b64}", (u64)large);
+  println("b8:  (u8)123");
+  println("{b8}", (u8)123);
+  println("b16: (u16)12345");
+  println("{b16}", (u16)12345);
+  println("b32: (u32)1234567");
+  println("{b32}", (u32)1234567);
+  println("b64: (u64)1234567890");
+  println("{b64}", (u64)1234567890);
   println("");
 
   // Edge cases
-  println("Edge cases:");
   println("Empty string:     \t\"{s}\"", "");
   println("Null string:      \t\"{s}\"", NULL);
   println("Braces:           \t{{i32}} {i32}", 42);
@@ -89,8 +91,6 @@ int main() {
   println("<{u32}, {u32}>", U32_MIN, U32_MAX);
   print("u64 ");
   println("<{u64}, {u64}>", U64_MIN, U64_MAX);
-  println("");
 
-  println("Testing succesfull.");
   return 0;
 }
