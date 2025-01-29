@@ -42,10 +42,10 @@ typedef signed long long isize;
 #define U32_MAX (u32)4294967295UL
 #define U64_MAX (u64)18446744073709551615ULL
 
-#define U8_MIN (u8)0
-#define U16_MIN (u16)0
-#define U32_MIN (u32)0
-#define U64_MIN (u64)0
+#define U8_MIN (u8)0U
+#define U16_MIN (u16)0U
+#define U32_MIN (u32)0U
+#define U64_MIN (u64)0U
 
 // Floating-point limits
 #define F32_MAX FLT_MAX
