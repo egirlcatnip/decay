@@ -1,15 +1,15 @@
 #include "decay.h"
+#define limit_print false
 
 int main() {
   i32 num = 256;
   f32 pi = 3.1415f;
   f64 e = 2.718281828459045;
   f128 phi = 1.618033988749895;
-  char *world = "World!";
 
   // Basic string printing
   print("{s}", "Hello ");
-  println("{s}", world);
+  println("{s}", "world!");
   println("");
 
   // Mixed types
@@ -71,26 +71,37 @@ int main() {
   println("Malformed:        \ti32}", 42);
   println("");
 
-  // Type limits
-  println("Type Limits:");
-  print("i8: ");
-  println("<{i8}, {i8}>", I8_MIN, I8_MAX);
-  print("i16: ");
-  println("<{i16}, {i16}>", I16_MIN, I16_MAX);
-  print("i32: ");
-  println("<{i32}, {i32}>", I32_MIN, I32_MAX);
-  print("i64: ");
-  println("<{i64}, {i64}>", I64_MIN, I64_MAX);
-  println("");
+  if (limit_print) {
 
-  print("u8: ");
-  println("<{u8}, {u8}>", U8_MIN, U8_MAX);
-  print("u16 ");
-  println("<{u16}, {u16}>", U16_MIN, U16_MAX);
-  print("u32 ");
-  println("<{u32}, {u32}>", U32_MIN, U32_MAX);
-  print("u64 ");
-  println("<{u64}, {u64}>", U64_MIN, U64_MAX);
+    // Type limits
+    println("Type Limits:");
+    print("i8: ");
+    println("<{i8}, {i8}>", I8_MIN, I8_MAX);
+    print("i16: ");
+    println("<{i16}, {i16}>", I16_MIN, I16_MAX);
+    print("i32: ");
+    println("<{i32}, {i32}>", I32_MIN, I32_MAX);
+    print("i64: ");
+    println("<{i64}, {i64}>", I64_MIN, I64_MAX);
+    println("");
 
+    print("u8: ");
+    println("<{u8}, {u8}>", U8_MIN, U8_MAX);
+    print("u16 ");
+    println("<{u16}, {u16}>", U16_MIN, U16_MAX);
+    print("u32 ");
+    println("<{u32}, {u32}>", U32_MIN, U32_MAX);
+    print("u64 ");
+    println("<{u64}, {u64}>", U64_MIN, U64_MAX);
+    println("");
+
+    print("f32: ");
+    println("<{f32}, {f32}>", F32_MIN, F32_MAX);
+    print("f64 ");
+    println("<{f64}, {f64}>", F64_MIN, F64_MAX);
+    print("f128 ");
+    println("<{f128}, {f128}>", F128_MIN, F128_MAX);
+    println("");
+  }
   return 0;
 }
