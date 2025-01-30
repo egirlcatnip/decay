@@ -34,21 +34,17 @@ int main() {
 | --------- | ---------------------------- |
 | `{s}`     | String                       |
 | `{c}`     | Character                    |
-| --------- | ---------------------------- |
 | `{i8}`    | 8-bit signed integer         |
 | `{i16}`   | 16-bit signed integer        |
 | `{i32}`   | 32-bit signed integer        |
 | `{i64}`   | 64-bit signed integer        |
-| --------- | ---------------------------- |
 | `{u8}`    | 8-bit unsigned integer       |
 | `{u16}`   | 16-bit unsigned integer      |
 | `{u32}`   | 32-bit unsigned integer      |
 | `{u64}`   | 64-bit unsigned integer      |
-| --------- | ---------------------------- |
 | `{f32}`   | 32-bit floating-point        |
 | `{f64}`   | 64-bit floating-point        |
 | `{f128}`  | 128-bit floating-point       |
-| --------- | ---------------------------- |
 | `{x8}`    | 8-bit hex (lowercase)        |
 | `{x16}`   | 16-bit hex (lowercase)       |
 | `{x32}`   | 32-bit hex (lowercase)       |
@@ -57,15 +53,12 @@ int main() {
 | `{X16}`   | 16-bit hex (uppercase)       |
 | `{X32}`   | 32-bit hex (uppercase)       |
 | `{X64}`   | 64-bit hex (uppercase)       |
-| --------- | ---------------------------- |
 | `{p}`     | Pointer (lowercase hex)      |
 | `{P}`     | Pointer (uppercase hex)      |
-| --------- | ---------------------------- |
 | `{b8}`    | 8-bit binary representation  |
 | `{b16}`   | 16-bit binary representation |
 | `{b32}`   | 32-bit binary representation |
 | `{b64}`   | 64-bit binary representation |
-| --------- | ---------------------------- |
 
 
 ## Types
@@ -73,24 +66,19 @@ int main() {
 | Type    | Description             |
 | ------- | ----------------------- |
 | `bool`  | Boolean type            |
-| ------- | ----------------------- |
 | `i8`    | 8-bit signed integer    |
 | `i16`   | 16-bit signed integer   |
 | `i32`   | 32-bit signed integer   |
 | `i64`   | 64-bit signed integer   |
-| ------- | ----------------------- |
 | `u8`    | 8-bit unsigned integer  |
 | `u16`   | 16-bit unsigned integer |
 | `u32`   | 32-bit unsigned integer |
 | `u64`   | 64-bit unsigned integer |
-| ------- | ----------------------- |
 | `f32`   | 32-bit floating-point   |
 | `f64`   | 64-bit floating-point   |
 | `f128`  | 128-bit floating-point  |
-| ------- | ----------------------- |
 | `usize` | Architecture-dependent  |
 | `isize` | Architecture-dependent  |
-| ------- | ----------------------- |
 
 
 
