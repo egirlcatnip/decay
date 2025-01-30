@@ -398,7 +398,6 @@ static void __decay_format_value(char **buf, usize *rem, FormatSpec spec,
 
   // Invalid format
   default:
-    len = (usize)snprintf(num, sizeof(num), "[INVALID]");
     break;
   }
 
