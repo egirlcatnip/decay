@@ -79,6 +79,7 @@ typedef enum {
   FMT_F64,
   FMT_F128,
   FMT_STRING,
+  FMT_CHAR,
   FMT_PTR_LOWER,
   FMT_PTR_UPPER,
   FMT_HEX8_LOWER,
@@ -149,6 +150,9 @@ static FormatSpec __decay_parse_spec(const char *spec) {
     break;
   case 's':
     result.type = FMT_STRING;
+    break;
+  case 'c':
+    result.type = FMT_CHAR;
     break;
   case 'p':
     result.type = FMT_PTR_LOWER;
@@ -278,6 +282,13 @@ static void __decay_format_value(char **buf, usize *rem, FormatSpec spec,
   case FMT_STRING: {
     const char *s = va_arg(*args, const char *);
     len = (usize)snprintf(num, sizeof(num), "%s", s ? s : "(null)");
+    break;
+  }
+
+  // Characters
+  case FMT_CHAR: {
+    const char c = (char)va_arg(*args, const i64);
+    len = (usize)snprintf(num, sizeof(num), "%c", c);
     break;
   }
 
