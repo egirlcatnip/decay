@@ -1,51 +1,47 @@
 #ifndef DECAY_H
 #define DECAY_H
 
-/*==============================================================================
-  Type System
-==============================================================================*/
+#include <float.h>
+#include <inttypes.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-// Fixed-width integer types
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-typedef unsigned long long u64;
-typedef signed char i8;
-typedef signed short i16;
-typedef signed int i32;
-typedef signed long long i64;
-
-// Floating-point types
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
 typedef float f32;
 typedef double f64;
 typedef long double f128;
+typedef uintptr_t usize;
+typedef intptr_t isize;
 
-// Architecture-dependent size types
-typedef unsigned long long usize;
-typedef signed long long isize;
+#define I8_MAX INT8_MAX
+#define I16_MAX INT16_MAX
+#define I32_MAX INT32_MAX
+#define I64_MAX INT64_MAX
+#define I8_MIN INT8_MIN
+#define I16_MIN INT16_MIN
+#define I32_MIN INT32_MIN
+#define I64_MIN INT64_MIN
 
-// Integer limits
-#define I8_MAX (i8)127
-#define I16_MAX (i16)32767
-#define I32_MAX (i32)2147483647L
-#define I64_MAX (i64)9223372036854775807LL
-#define I8_MIN (i8)(-I8_MAX - 1)
-#define I16_MIN (i16)(-I16_MAX - 1)
-#define I32_MIN (i32)(-I32_MAX - 1)
-#define I64_MIN (i64)(-I64_MAX - 1)
+#define U8_MAX UINT8_MAX
+#define U16_MAX UINT16_MAX
+#define U32_MAX UINT32_MAX
+#define U64_MAX UINT64_MAX
+#define U8_MIN 0U
+#define U16_MIN 0U
+#define U32_MIN 0U
+#define U64_MIN 0U
 
-#define U8_MAX (u8)255U
-#define U16_MAX (u16)65535U
-#define U32_MAX (u32)4294967295UL
-#define U64_MAX (u64)18446744073709551615ULL
-
-#define U8_MIN (u8)0U
-#define U16_MIN (u16)0U
-#define U32_MIN (u32)0U
-#define U64_MIN (u64)0U
-
-#include <float.h>
-// Floating-point limits
 #define F32_MAX FLT_MAX
 #define F64_MAX DBL_MAX
 #define F128_MAX LDBL_MAX
@@ -53,17 +49,11 @@ typedef signed long long isize;
 #define F64_MIN DBL_MIN
 #define F128_MIN LDBL_MIN
 
-#include <stdbool.h>
-
-/*==============================================================================
-  Print System
-==============================================================================*/
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-
-#define DECAY_BUFFER_SIZE 8128
-#define DECAY_MAX_SPEC_LEN 32
+typedef struct {
+  char *data;
+  usize len;
+  usize cap;
+} Buffer;
 
 typedef enum {
   FMT_INVALID,
@@ -80,358 +70,358 @@ typedef enum {
   FMT_F128,
   FMT_STRING,
   FMT_CHAR,
-  FMT_PTR_LOWER,
-  FMT_PTR_UPPER,
-  FMT_HEX8_LOWER,
-  FMT_HEX8_UPPER,
-  FMT_HEX16_LOWER,
-  FMT_HEX16_UPPER,
-  FMT_HEX32_LOWER,
-  FMT_HEX32_UPPER,
-  FMT_HEX64_LOWER,
-  FMT_HEX64_UPPER,
   FMT_BIN8,
   FMT_BIN16,
   FMT_BIN32,
-  FMT_BIN64
+  FMT_BIN64,
+  FMT_HEX8,
+  FMT_HEX16,
+  FMT_HEX32,
+  FMT_HEX64,
+  FMT_PTR8,
+  FMT_PTR16,
+  FMT_PTR32,
+  FMT_PTR64
 } FormatType;
 
 typedef struct {
   FormatType type;
+  i32 width;
   i32 precision;
+  bool uppercase;
 } FormatSpec;
 
-static FormatSpec __decay_parse_spec(const char *spec) {
-  FormatSpec result = {FMT_INVALID, -1};
-  const char *p = spec;
+static Buffer buffer_create(usize initial) {
+  return (Buffer){(char *)malloc(initial), 0, initial};
+}
 
-  switch (*p++) {
+static void buffer_free(Buffer *buf) {
+  free(buf->data);
+  buf->data = NULL;
+  buf->len = buf->cap = 0;
+}
+
+static void buffer_append(Buffer *buf, const char *src, usize len) {
+  if (buf->len + len >= buf->cap) {
+    buf->cap = (buf->cap * 2) + len;
+    buf->data = (char *)realloc(buf->data, buf->cap);
+  }
+  memcpy(buf->data + buf->len, src, len);
+  buf->len += len;
+}
+
+static FormatSpec __parse_spec(const char **fmt) {
+  FormatSpec spec = {FMT_INVALID, 0, -1, 0};
+  const char *p = *fmt;
+
+  switch (p[0]) {
   case 'i':
-    if (!strncmp(p, "8", 1)) {
-      result.type = FMT_I8;
+    p++;
+    if (p[0] == '8') {
+      spec.type = FMT_I8;
       p++;
-    } else if (!strncmp(p, "16", 2)) {
-      result.type = FMT_I16;
+    } else if (p[0] == '1' && p[1] == '6') {
+      spec.type = FMT_I16;
       p += 2;
-    } else if (!strncmp(p, "32", 2)) {
-      result.type = FMT_I32;
+    } else if (p[0] == '3' && p[1] == '2') {
+      spec.type = FMT_I32;
       p += 2;
-    } else if (!strncmp(p, "64", 2)) {
-      result.type = FMT_I64;
+    } else if (p[0] == '6' && p[1] == '4') {
+      spec.type = FMT_I64;
       p += 2;
     }
     break;
   case 'u':
-    if (!strncmp(p, "8", 1)) {
-      result.type = FMT_U8;
+    p++;
+    if (p[0] == '8') {
+      spec.type = FMT_U8;
       p++;
-    } else if (!strncmp(p, "16", 2)) {
-      result.type = FMT_U16;
+    } else if (p[0] == '1' && p[1] == '6') {
+      spec.type = FMT_U16;
       p += 2;
-    } else if (!strncmp(p, "32", 2)) {
-      result.type = FMT_U32;
+    } else if (p[0] == '3' && p[1] == '2') {
+      spec.type = FMT_U32;
       p += 2;
-    } else if (!strncmp(p, "64", 2)) {
-      result.type = FMT_U64;
+    } else if (p[0] == '6' && p[1] == '4') {
+      spec.type = FMT_U64;
       p += 2;
     }
     break;
   case 'f':
-    if (!strncmp(p, "32", 2)) {
-      result.type = FMT_F32;
+    p++;
+    if (p[0] == '3' && p[1] == '2') {
+      spec.type = FMT_F32;
       p += 2;
-    } else if (!strncmp(p, "64", 2)) {
-      result.type = FMT_F64;
+    } else if (p[0] == '6' && p[1] == '4') {
+      spec.type = FMT_F64;
       p += 2;
-    } else if (!strncmp(p, "128", 3)) {
-      result.type = FMT_F128;
+    } else if (p[0] == '1' && p[1] == '2' && p[2] == '8') {
+      spec.type = FMT_F128;
       p += 3;
     }
     break;
   case 's':
-    result.type = FMT_STRING;
+    spec.type = FMT_STRING;
+    p++;
     break;
   case 'c':
-    result.type = FMT_CHAR;
-    break;
-  case 'p':
-    result.type = FMT_PTR_LOWER;
-    break;
-  case 'P':
-    result.type = FMT_PTR_UPPER;
+    spec.type = FMT_CHAR;
+    p++;
     break;
   case 'x':
-    if (!strncmp(p, "8", 1)) {
-      result.type = FMT_HEX8_LOWER;
-      p++;
-    } else if (!strncmp(p, "16", 2)) {
-      result.type = FMT_HEX16_LOWER;
-      p += 2;
-    } else if (!strncmp(p, "32", 2)) {
-      result.type = FMT_HEX32_LOWER;
-      p += 2;
-    } else if (!strncmp(p, "64", 2)) {
-      result.type = FMT_HEX64_LOWER;
-      p += 2;
-    }
-    break;
   case 'X':
-    if (!strncmp(p, "8", 1)) {
-      result.type = FMT_HEX8_UPPER;
+    spec.uppercase = (p[0] == 'X');
+    p++;
+    if (p[0] == '8') {
+      spec.type = FMT_HEX8;
       p++;
-    } else if (!strncmp(p, "16", 2)) {
-      result.type = FMT_HEX16_UPPER;
+    } else if (p[0] == '1' && p[1] == '6') {
+      spec.type = FMT_HEX16;
       p += 2;
-    } else if (!strncmp(p, "32", 2)) {
-      result.type = FMT_HEX32_UPPER;
+    } else if (p[0] == '3' && p[1] == '2') {
+      spec.type = FMT_HEX32;
       p += 2;
-    } else if (!strncmp(p, "64", 2)) {
-      result.type = FMT_HEX64_UPPER;
+    } else if (p[0] == '6' && p[1] == '4') {
+      spec.type = FMT_HEX64;
       p += 2;
     }
     break;
+
+  case 'p':
+  case 'P':
+    spec.uppercase = (p[0] == 'P');
+
+    p++;
+    if (p[0] == '8') {
+      spec.type = FMT_PTR8;
+      p++;
+    } else if (p[0] == '1' && p[1] == '6') {
+      spec.type = FMT_PTR16;
+      p += 2;
+    } else if (p[0] == '3' && p[1] == '2') {
+      spec.type = FMT_PTR32;
+      p += 2;
+    } else if (p[0] == '6' && p[1] == '4') {
+      spec.type = FMT_PTR64;
+      p += 2;
+    }
+    break;
+
   case 'b':
-    if (!strncmp(p, "8", 1)) {
-      result.type = FMT_BIN8;
+  case 'B':
+    spec.uppercase = (p[0] == 'B');
+    p++;
+    if (p[0] == '8') {
+      spec.type = FMT_BIN8;
       p++;
-    } else if (!strncmp(p, "16", 2)) {
-      result.type = FMT_BIN16;
+    } else if (p[0] == '1' && p[1] == '6') {
+      spec.type = FMT_BIN16;
       p += 2;
-    } else if (!strncmp(p, "32", 2)) {
-      result.type = FMT_BIN32;
+    } else if (p[0] == '3' && p[1] == '2') {
+      spec.type = FMT_BIN32;
       p += 2;
-    } else if (!strncmp(p, "64", 2)) {
-      result.type = FMT_BIN64;
+    } else if (p[0] == '6' && p[1] == '4') {
+      spec.type = FMT_BIN64;
       p += 2;
     }
     break;
+
   default:
-    return result;
+    return spec;
   }
 
-  if (*p == '.') {
-    result.precision = 0;
-    while (*++p >= '0' && *p <= '9')
-      result.precision = result.precision * 10 + (*p - '0');
+  while (p[0]) {
+    if (p[0] == '.') {
+      if (!(spec.type >= FMT_F32 && spec.type <= FMT_F128))
+        break;
+      spec.precision = 0;
+      p++;
+      while (p[0] >= '0' && p[0] <= '9') {
+        spec.precision = spec.precision * 10 + (p[0] - '0');
+        p++;
+      }
+    } else if (p[0] == '}')
+      break;
+    else
+      p++;
   }
 
-  if (result.precision != -1 &&
-      !(result.type >= FMT_F32 && result.type <= FMT_F128))
-    return (FormatSpec){FMT_INVALID, -1};
-
-  return *p ? (FormatSpec){FMT_INVALID, -1} : result;
+  *fmt = p;
+  return spec;
 }
 
-static void __decay_format_value(char **buf, usize *rem, FormatSpec spec,
-                                 va_list *args) {
-  char num[1024];
+static char *__format_value(FormatSpec spec, va_list *args) {
+  Buffer buf = buffer_create(512);
+  char num_buf[512];
+  char *output = NULL;
   usize len = 0;
 
   switch (spec.type) {
-
-  // Signed integers
-  case FMT_I8: {
-    len = (usize)snprintf(num, sizeof(num), "%hhd", (i8)va_arg(*args, i64));
+  case FMT_I8:
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRId8, va_arg(*args, i32));
     break;
-  }
-  case FMT_I16: {
-    len = (usize)snprintf(num, sizeof(num), "%hd", (i16)va_arg(*args, i64));
+  case FMT_I16:
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRId16, va_arg(*args, i32));
     break;
-  }
   case FMT_I32:
-    len = (usize)snprintf(num, sizeof(num), "%d", (i32)va_arg(*args, i64));
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRId32, va_arg(*args, i32));
     break;
   case FMT_I64:
-    len = (usize)snprintf(num, sizeof(num), "%lld", (i64)va_arg(*args, i64));
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRId64, va_arg(*args, i64));
     break;
-
-  // Unsigned integers
-  case FMT_U8: {
-    len = (usize)snprintf(num, sizeof(num), "%hhu", (u8)va_arg(*args, u64));
+  case FMT_U8:
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu8, va_arg(*args, u32));
     break;
-  }
-  case FMT_U16: {
-    len = (usize)snprintf(num, sizeof(num), "%hu", (u16)va_arg(*args, u64));
+  case FMT_U16:
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu16, va_arg(*args, u32));
     break;
-  }
   case FMT_U32:
-    len = (usize)snprintf(num, sizeof(num), "%u", (u32)va_arg(*args, u64));
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu32, va_arg(*args, u32));
     break;
   case FMT_U64:
-    len = (usize)snprintf(num, sizeof(num), "%llu", (u64)va_arg(*args, u64));
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu64, va_arg(*args, u64));
     break;
-
-  // Floating-point numbers
   case FMT_F32:
-    len = (usize)snprintf(num, sizeof(num), "%.*f",
-                          spec.precision >= 0 ? spec.precision : 6,
-                          (f32)va_arg(*args, f64));
+    len = snprintf(num_buf, sizeof(num_buf), "%.*f", spec.precision,
+                   va_arg(*args, double));
     break;
   case FMT_F64:
-    len = (usize)snprintf(num, sizeof(num), "%.*f",
-                          spec.precision >= 0 ? spec.precision : 6,
-                          (f64)va_arg(*args, f64));
+    len = snprintf(num_buf, sizeof(num_buf), "%.*f", spec.precision,
+                   va_arg(*args, double));
     break;
   case FMT_F128:
-    len = (usize)snprintf(num, sizeof(num), "%.*Lf",
-                          spec.precision >= 0 ? spec.precision : 6,
-                          (f128)va_arg(*args, f128));
+    len = snprintf(num_buf, sizeof(num_buf), "%.*Lf", spec.precision,
+                   va_arg(*args, f128));
     break;
-
-  // Strings
   case FMT_STRING: {
     const char *s = va_arg(*args, const char *);
-    len = (usize)snprintf(num, sizeof(num), "%s", s ? s : "(null)");
+    len = s ? strlen(s) : 6;
+    output = (char *)malloc(len + 1);
+    if (output)
+      snprintf(output, len + 1, "%s", s ? s : "(null)");
     break;
   }
-
-  // Characters
   case FMT_CHAR: {
-    const char c = (char)va_arg(*args, const i64);
-    len = (usize)snprintf(num, sizeof(num), "%c", c);
-    break;
-  }
+    char c = va_arg(*args, u32);
 
-  // Pointers
-  case FMT_PTR_LOWER: {
-    usize val = (usize)va_arg(*args, i64);
-    len = (usize)snprintf(num, sizeof(num), "%llx", val);
+    output = (char *)malloc(len + 1);
+    if (output)
+      snprintf(output, 2, "%c", c);
     break;
   }
-  case FMT_PTR_UPPER: {
-    usize val = (usize)va_arg(*args, i64);
-    len = (usize)snprintf(num, sizeof(num), "%llX", val);
+  case FMT_HEX8: {
+    u8 val = (u8)va_arg(*args, u32);
+    len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%02X" : "%02x",
+                   val);
     break;
   }
-
-  // Hexadecimal numbers
-  case FMT_HEX8_LOWER: {
-    u8 val = (u8)va_arg(*args, i32);
-    len = (usize)snprintf(num, sizeof(num), "%x", val);
+  case FMT_HEX16: {
+    u16 val = (u16)va_arg(*args, u32);
+    len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%04X" : "%04x",
+                   val);
     break;
   }
-  case FMT_HEX8_UPPER: {
-    u8 val = (u8)va_arg(*args, i32);
-    len = (usize)snprintf(num, sizeof(num), "%X", val);
+  case FMT_HEX32: {
+    u32 val = va_arg(*args, u32);
+    len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%08X" : "%08x",
+                   val);
     break;
   }
-  case FMT_HEX16_LOWER: {
-    u16 val = (u16)va_arg(*args, i32);
-    len = (usize)snprintf(num, sizeof(num), "%x", val);
+  case FMT_HEX64: {
+    u64 val = va_arg(*args, u64);
+    len = snprintf(num_buf, sizeof(num_buf),
+                   spec.uppercase ? "%016" PRIX64 : "%016" PRIx64, val);
     break;
   }
-  case FMT_HEX16_UPPER: {
-    u16 val = (u16)va_arg(*args, i32);
-    len = (usize)snprintf(num, sizeof(num), "%X", val);
+  case FMT_PTR8: {
+    u8 val = (u8)va_arg(*args, u32);
+    len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%02X" : "%02x",
+                   val);
     break;
   }
-  case FMT_HEX32_LOWER: {
-    u32 val = va_arg(*args, i32);
-    len = (usize)snprintf(num, sizeof(num), "%x", val);
+  case FMT_PTR16: {
+    u16 val = (u16)va_arg(*args, u32);
+    len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%04X" : "%04x",
+                   val);
     break;
   }
-  case FMT_HEX32_UPPER: {
-    u32 val = va_arg(*args, i32);
-    len = (usize)snprintf(num, sizeof(num), "%X", val);
+  case FMT_PTR32: {
+    u32 val = va_arg(*args, u32);
+    len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%08X" : "%08x",
+                   val);
     break;
   }
-  case FMT_HEX64_LOWER: {
-    u64 val = va_arg(*args, i64);
-    len = (usize)snprintf(num, sizeof(num), "%llx", val);
+  case FMT_PTR64: {
+    u64 val = va_arg(*args, u64);
+    len = snprintf(num_buf, sizeof(num_buf),
+                   spec.uppercase ? "%016" PRIX64 : "%016" PRIx64, val);
     break;
   }
-  case FMT_HEX64_UPPER: {
-    u64 val = va_arg(*args, i64);
-    len = (usize)snprintf(num, sizeof(num), "%llX", val);
-    break;
-  }
-
-  // Binary numbers
-  case FMT_BIN8: {
-    u8 val = (u8)va_arg(*args, i32);
-    char *p = num;
-    for (i32 i = 7; i >= 0; i--) {
-      *p++ = (val >> i) & 1 ? '1' : '0';
-      if (i > 0 && i % 4 == 0)
-        *p++ = '_';
-    }
-    *p = '\0';
-    len = (usize)(p - num);
-    break;
-  }
-  case FMT_BIN16: {
-    u16 val = (u16)va_arg(*args, i32);
-    char *p = num;
-    for (i32 i = 15; i >= 0; i--) {
-      *p++ = (val >> i) & 1 ? '1' : '0';
-      if (i > 0 && i % 4 == 0)
-        *p++ = '_';
-    }
-    *p = '\0';
-    len = (usize)(p - num);
-    break;
-  }
-  case FMT_BIN32: {
-    u32 val = (u32)va_arg(*args, i32);
-    char *p = num;
-    for (i32 i = 31; i >= 0; i--) {
-      *p++ = (val >> i) & 1 ? '1' : '0';
-      if (i > 0 && i % 4 == 0)
-        *p++ = '_';
-    }
-    *p = '\0';
-    len = (usize)(p - num);
-    break;
-  }
+  case FMT_BIN8:
+  case FMT_BIN16:
+  case FMT_BIN32:
   case FMT_BIN64: {
-    u64 val = va_arg(*args, i32);
-    char *p = num;
-    for (i32 i = 63; i >= 0; i--) {
-      *p++ = (val >> i) & 1 ? '1' : '0';
-      if (i > 0 && i % 4 == 0)
-        *p++ = '_';
+    u64 value = 0;
+    int bits = 0;
+    switch (spec.type) {
+    case FMT_BIN8:
+      value = (u8)va_arg(*args, u32);
+      bits = 8;
+      break;
+    case FMT_BIN16:
+      value = (u16)va_arg(*args, u32);
+      bits = 16;
+      break;
+    case FMT_BIN32:
+      value = va_arg(*args, u32);
+      bits = 32;
+      break;
+    case FMT_BIN64:
+      value = va_arg(*args, u64);
+      bits = 64;
+      break;
+    default:
+      return NULL;
     }
-    *p = '\0';
-    len = (usize)(p - num);
-    break;
+
+    char tmp[128];
+    int pos = 0;
+    for (int i = bits - 1; i >= 0; i--) {
+      tmp[pos++] = (value & ((u64)1 << i)) ? '1' : '0';
+      if (spec.uppercase && i > 0 && i % 4 == 0)
+        tmp[pos++] = '_';
+    }
+    tmp[pos] = '\0';
+    len = snprintf(num_buf, sizeof(num_buf), "%s", tmp);
+
+    if (!output) {
+      output = (char *)malloc(len + 1);
+      if (output) {
+        memcpy(output, num_buf, len);
+        output[len] = '\0';
+      }
+    }
+    buffer_free(&buf);
+    return output ? output : (char *)malloc(1);
   }
 
-  // Invalid format
   default:
-    break;
+    return NULL;
   }
 
-  if (len <= *rem) {
-    memcpy(*buf, num, len);
-    *buf += len;
-    *rem -= len;
-  }
-}
-
-static void __process_segment(const char *start, usize len, char **buf_ptr,
-                              usize *remaining) {
-  const char *p = start;
-  const char *end = start + len;
-  while (p < end && *remaining > 0) {
-    if (p + 1 < end && *p == '{' && *(p + 1) == '{') {
-      *(*buf_ptr)++ = '{';
-      (*remaining)--;
-      p += 2;
-    } else if (p + 1 < end && *p == '}' && *(p + 1) == '}') {
-      *(*buf_ptr)++ = '}';
-      (*remaining)--;
-      p += 2;
-    } else {
-      *(*buf_ptr)++ = *p++;
-      (*remaining)--;
+  if (!output) {
+    output = (char *)malloc(len + 1);
+    if (output) {
+      memcpy(output, num_buf, len);
+      output[len] = '\0';
     }
   }
+  buffer_free(&buf);
+  return output ? output : (char *)malloc(1);
 }
 
-static void __decay_vprint(FILE *stream, const char *fmt, va_list args) {
-  char buffer[DECAY_BUFFER_SIZE];
-  char *buf_ptr = buffer;
-  usize remaining = sizeof(buffer);
+static void __vprint(FILE *stream, const char *fmt, va_list args) {
+  Buffer buf = buffer_create(256);
   const char *start = fmt;
   va_list args_copy;
   va_copy(args_copy, args);
@@ -439,92 +429,70 @@ static void __decay_vprint(FILE *stream, const char *fmt, va_list args) {
   while (*fmt) {
     if (*fmt == '{') {
       if (fmt[1] == '{') {
-        __process_segment(start, (usize)(fmt - start), &buf_ptr, &remaining);
-        if (remaining > 0) {
-          *buf_ptr++ = '{';
-          remaining--;
-        }
+        buffer_append(&buf, start, fmt - start);
+        buffer_append(&buf, "{", 1);
         fmt += 2;
         start = fmt;
       } else {
-        __process_segment(start, (usize)(fmt - start), &buf_ptr, &remaining);
-        const char *spec_start = fmt + 1;
-        const char *spec_end = spec_start;
+        buffer_append(&buf, start, fmt - start);
+        const char *spec_start = fmt;
+        fmt++;
+        const char *spec_end = fmt;
         while (*spec_end && *spec_end != '}')
           spec_end++;
 
-        if (!*spec_end) {
-          if (remaining > 0) {
-            *buf_ptr++ = '{';
-            remaining--;
-          }
-          fmt++;
-          start = fmt;
-        } else {
-          char spec_buf[DECAY_MAX_SPEC_LEN + 1];
-          usize spec_len = (usize)(spec_end - spec_start);
-          if (spec_len > DECAY_MAX_SPEC_LEN)
-            spec_len = DECAY_MAX_SPEC_LEN;
-          memcpy(spec_buf, spec_start, spec_len);
-          spec_buf[spec_len] = '\0';
+        if (*spec_end == '}') {
+          const char *spec_content = fmt;
+          FormatSpec spec = __parse_spec(&spec_content);
 
-          FormatSpec spec = __decay_parse_spec(spec_buf);
-          if (spec.type == FMT_INVALID) {
-            if (remaining > 0) {
-              *buf_ptr++ = '{';
-              remaining--;
-            }
-            usize invalid_len = spec_len;
-            if (invalid_len > remaining)
-              invalid_len = remaining;
-            memcpy(buf_ptr, spec_start, invalid_len);
-            buf_ptr += invalid_len;
-            remaining -= invalid_len;
-            if (remaining > 0) {
-              *buf_ptr++ = '}';
-              remaining--;
-            }
+          if (spec.type == FMT_INVALID || spec_content != spec_end) {
+            buffer_append(&buf, spec_start, spec_end - spec_start + 1);
           } else {
-            __decay_format_value(&buf_ptr, &remaining, spec, &args_copy);
+            char *value = __format_value(spec, &args_copy);
+            if (value) {
+              buffer_append(&buf, value, strlen(value));
+              free(value);
+            }
           }
           fmt = spec_end + 1;
-          start = fmt;
+        } else {
+          buffer_append(&buf, "{", 1);
         }
+        start = fmt;
       }
     } else if (*fmt == '}') {
       if (fmt[1] == '}') {
-        __process_segment(start, (usize)(fmt - start), &buf_ptr, &remaining);
-        if (remaining > 0) {
-          *buf_ptr++ = '}';
-          remaining--;
-        }
+        buffer_append(&buf, start, fmt - start);
+        buffer_append(&buf, "}", 1);
         fmt += 2;
         start = fmt;
       } else {
+        buffer_append(&buf, start, fmt - start + 1);
         fmt++;
+        start = fmt;
       }
     } else {
       fmt++;
     }
   }
 
-  __process_segment(start, (usize)(fmt - start), &buf_ptr, &remaining);
-
-  fwrite(buffer, 1, (size_t)(buf_ptr - buffer), stream);
+  buffer_append(&buf, start, fmt - start);
+  fwrite(buf.data, 1, buf.len, stream);
+  buffer_free(&buf);
   va_end(args_copy);
 }
 
 static inline void print(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  __decay_vprint(stdout, fmt, args);
+  __vprint(stdout, fmt, args);
   va_end(args);
 }
 
 static inline void println(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  __decay_vprint(stdout, fmt, args);
+  __vprint(stdout, fmt, args);
   fputc('\n', stdout);
   va_end(args);
 }
@@ -532,14 +500,14 @@ static inline void println(const char *fmt, ...) {
 static inline void fprint(FILE *stream, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  __decay_vprint(stream, fmt, args);
+  __vprint(stream, fmt, args);
   va_end(args);
 }
 
 static inline void fprintln(FILE *stream, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  __decay_vprint(stream, fmt, args);
+  __vprint(stream, fmt, args);
   fputc('\n', stream);
   va_end(args);
 }
