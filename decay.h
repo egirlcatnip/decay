@@ -5,7 +5,6 @@
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -257,42 +256,56 @@ static char *__format_value(FormatSpec spec, va_list *args) {
   usize len = 0;
 
   switch (spec.type) {
+
+  // Integer
   case FMT_I8:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRId8, va_arg(*args, i32));
+    len =
+        snprintf(num_buf, sizeof(num_buf), "%" PRId8, (i8)va_arg(*args, usize));
     break;
   case FMT_I16:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRId16, va_arg(*args, i32));
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRId16,
+                   (i16)va_arg(*args, usize));
     break;
   case FMT_I32:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRId32, va_arg(*args, i32));
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRId32,
+                   (i32)va_arg(*args, usize));
     break;
   case FMT_I64:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRId64, va_arg(*args, i64));
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRId64,
+                   (i64)va_arg(*args, usize));
     break;
   case FMT_U8:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu8, va_arg(*args, u32));
+    len =
+        snprintf(num_buf, sizeof(num_buf), "%" PRIu8, (u8)va_arg(*args, usize));
     break;
   case FMT_U16:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu16, va_arg(*args, u32));
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu16,
+                   (u16)va_arg(*args, usize));
     break;
   case FMT_U32:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu32, va_arg(*args, u32));
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu32,
+                   (u32)va_arg(*args, usize));
     break;
   case FMT_U64:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu64, va_arg(*args, u64));
+    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu64,
+                   (u64)va_arg(*args, usize));
     break;
+
+  // Float
   case FMT_F32:
     len = snprintf(num_buf, sizeof(num_buf), "%.*f", spec.precision,
-                   va_arg(*args, double));
+                   va_arg(*args, f64));
     break;
   case FMT_F64:
     len = snprintf(num_buf, sizeof(num_buf), "%.*f", spec.precision,
-                   va_arg(*args, double));
+                   va_arg(*args, f64));
     break;
   case FMT_F128:
     len = snprintf(num_buf, sizeof(num_buf), "%.*Lf", spec.precision,
                    va_arg(*args, f128));
     break;
+
+  // String
   case FMT_STRING: {
     const char *s = va_arg(*args, const char *);
     len = s ? strlen(s) : 6;
@@ -301,62 +314,68 @@ static char *__format_value(FormatSpec spec, va_list *args) {
       snprintf(output, len + 1, "%s", s ? s : "(null)");
     break;
   }
-  case FMT_CHAR: {
-    char c = va_arg(*args, u32);
 
-    output = (char *)malloc(len + 1);
-    if (output)
-      snprintf(output, 2, "%c", c);
+  // Char
+  case FMT_CHAR: {
+    char c = (char)va_arg(*args, usize);
+    len = snprintf(num_buf, sizeof(num_buf), "%c", c);
+
     break;
   }
+
+  // Hex
   case FMT_HEX8: {
-    u8 val = (u8)va_arg(*args, u32);
+    u8 val = (u8)va_arg(*args, usize);
     len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%02X" : "%02x",
                    val);
     break;
   }
   case FMT_HEX16: {
-    u16 val = (u16)va_arg(*args, u32);
+    u16 val = (u16)va_arg(*args, usize);
     len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%04X" : "%04x",
                    val);
     break;
   }
   case FMT_HEX32: {
-    u32 val = va_arg(*args, u32);
+    u32 val = va_arg(*args, usize);
     len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%08X" : "%08x",
                    val);
     break;
   }
   case FMT_HEX64: {
-    u64 val = va_arg(*args, u64);
+    u64 val = va_arg(*args, usize);
     len = snprintf(num_buf, sizeof(num_buf),
                    spec.uppercase ? "%016" PRIX64 : "%016" PRIx64, val);
     break;
   }
+
+  // Pointer
   case FMT_PTR8: {
-    u8 val = (u8)va_arg(*args, u32);
+    u8 val = (u8)va_arg(*args, usize);
     len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%02X" : "%02x",
                    val);
     break;
   }
   case FMT_PTR16: {
-    u16 val = (u16)va_arg(*args, u32);
+    u16 val = (u16)va_arg(*args, usize);
     len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%04X" : "%04x",
                    val);
     break;
   }
   case FMT_PTR32: {
-    u32 val = va_arg(*args, u32);
+    u32 val = va_arg(*args, usize);
     len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%08X" : "%08x",
                    val);
     break;
   }
   case FMT_PTR64: {
-    u64 val = va_arg(*args, u64);
+    u64 val = va_arg(*args, usize);
     len = snprintf(num_buf, sizeof(num_buf),
                    spec.uppercase ? "%016" PRIX64 : "%016" PRIx64, val);
     break;
   }
+
+  // Binary
   case FMT_BIN8:
   case FMT_BIN16:
   case FMT_BIN32:
@@ -365,19 +384,19 @@ static char *__format_value(FormatSpec spec, va_list *args) {
     int bits = 0;
     switch (spec.type) {
     case FMT_BIN8:
-      value = (u8)va_arg(*args, u32);
+      value = (u8)va_arg(*args, usize);
       bits = 8;
       break;
     case FMT_BIN16:
-      value = (u16)va_arg(*args, u32);
+      value = (u16)va_arg(*args, usize);
       bits = 16;
       break;
     case FMT_BIN32:
-      value = va_arg(*args, u32);
+      value = va_arg(*args, usize);
       bits = 32;
       break;
     case FMT_BIN64:
-      value = va_arg(*args, u64);
+      value = va_arg(*args, usize);
       bits = 64;
       break;
     default:

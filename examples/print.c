@@ -33,7 +33,7 @@ int main() {
   println("");
 
   // Floating-point printing
-  println("f32 default:        \t{f32}", pi);
+  println("f32 precision(_):   \t{f32}", pi);
   println("f64 precision(6):   \t{f64.3}", e);
   println("f128 precision(9):  \t{f128.9}", phi);
   println("");
