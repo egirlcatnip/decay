@@ -1,14 +1,19 @@
 #ifndef DECAY_H
 #define DECAY_H
 
-#include <float.h>
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+/*========================================================================*/
+/*                          Type Definitions                            */
+/*========================================================================*/
+
+/* Fixed width integer and floating point types */
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
@@ -23,6 +28,7 @@ typedef long double f128;
 typedef uintptr_t usize;
 typedef intptr_t isize;
 
+/* Integer limits macros */
 #define I8_MAX INT8_MAX
 #define I16_MAX INT16_MAX
 #define I32_MAX INT32_MAX
@@ -41,494 +47,517 @@ typedef intptr_t isize;
 #define U32_MIN 0U
 #define U64_MIN 0U
 
-#define F32_MAX FLT_MAX
-#define F64_MAX DBL_MAX
-#define F128_MAX LDBL_MAX
-#define F32_MIN FLT_MIN
-#define F64_MIN DBL_MIN
-#define F128_MIN LDBL_MIN
+/*========================================================================*/
+/*                       Format Specification                             */
+/*========================================================================*/
 
-typedef struct {
-  char *data;
-  usize len;
-  usize cap;
-} Buffer;
-
+/* Supported format specifiers */
 typedef enum {
-  FMT_INVALID,
-  FMT_I8,
-  FMT_I16,
-  FMT_I32,
-  FMT_I64,
-  FMT_U8,
-  FMT_U16,
-  FMT_U32,
-  FMT_U64,
-  FMT_F32,
-  FMT_F64,
-  FMT_F128,
-  FMT_STRING,
-  FMT_CHAR,
-  FMT_BIN8,
-  FMT_BIN16,
-  FMT_BIN32,
-  FMT_BIN64,
-  FMT_HEX8,
-  FMT_HEX16,
-  FMT_HEX32,
-  FMT_HEX64,
-  FMT_PTR8,
-  FMT_PTR16,
-  FMT_PTR32,
-  FMT_PTR64
+  SPEC_INVALID = 0,
+  SPEC_I32,
+  SPEC_U32,
+  SPEC_I64,
+  SPEC_U64,
+  SPEC_I16,
+  SPEC_U16,
+  SPEC_I8,
+  SPEC_U8,
+  SPEC_F32,
+  SPEC_F64,
+  SPEC_F128,
+  SPEC_C,
+  SPEC_S,
+  SPEC_P,    /* {p} is equivalent to {i64:x} */
+  SPEC_CAP_P /* {P} is equivalent to {i64:X} */
 } FormatType;
 
+/* Structure for a parsed format specifier */
 typedef struct {
   FormatType type;
-  i32 width;
-  i32 precision;
-  bool uppercase;
+  char alt;      /* Alternative format (e.g. 'x', 'X', 'b', 'B') */
+  int precision; /* Precision for floats, -1 if not specified */
+  int valid;     /* 1 if valid, 0 if invalid */
 } FormatSpec;
 
-static Buffer buffer_create(usize initial) {
-  return (Buffer){(char *)malloc(initial), 0, initial};
+/*========================================================================*/
+/*                         Helper Prototypes                            */
+/*========================================================================*/
+static FormatSpec _parse_format_spec(const char **fmt_ptr);
+static FormatType _get_format_type(const char *type_str);
+static void _print_binary(FILE *f, unsigned long long value, usize group,
+                          usize total_bits);
+
+/* Helpers for printing float binary representations */
+static void _print_float_binary_f32(FILE *f, f32 value, usize group);
+static void _print_float_binary_f64(FILE *f, f64 value, usize group);
+static void _print_float_binary_f128(FILE *f, f128 value, usize group);
+
+/*========================================================================*/
+/*                      Helper Implementations                          */
+/*========================================================================*/
+
+static FormatType _get_format_type(const char *type_str) {
+  if (strcmp(type_str, "i32") == 0)
+    return SPEC_I32;
+  if (strcmp(type_str, "u32") == 0)
+    return SPEC_U32;
+  if (strcmp(type_str, "i64") == 0)
+    return SPEC_I64;
+  if (strcmp(type_str, "u64") == 0)
+    return SPEC_U64;
+  if (strcmp(type_str, "i16") == 0)
+    return SPEC_I16;
+  if (strcmp(type_str, "u16") == 0)
+    return SPEC_U16;
+  if (strcmp(type_str, "i8") == 0)
+    return SPEC_I8;
+  if (strcmp(type_str, "u8") == 0)
+    return SPEC_U8;
+  if (strcmp(type_str, "f32") == 0)
+    return SPEC_F32;
+  if (strcmp(type_str, "f64") == 0)
+    return SPEC_F64;
+  if (strcmp(type_str, "f128") == 0)
+    return SPEC_F128;
+  if (strcmp(type_str, "c") == 0)
+    return SPEC_C;
+  if (strcmp(type_str, "s") == 0)
+    return SPEC_S;
+  if (strcmp(type_str, "p") == 0)
+    return SPEC_P;
+  if (strcmp(type_str, "P") == 0)
+    return SPEC_CAP_P;
+  return SPEC_INVALID;
 }
 
-static void buffer_free(Buffer *buf) {
-  free(buf->data);
-  buf->data = NULL;
-  buf->len = buf->cap = 0;
-}
+/* Parse a placeholder starting after the '{'.
+ * Advances *fmt_ptr past the closing '}'.
+ * Does minimal parsing; further validation is done later.
+ */
+static FormatSpec _parse_format_spec(const char **fmt_ptr) {
+  FormatSpec spec = {SPEC_INVALID, 0, -1, 1};
+  const char *p = *fmt_ptr;
+  char type_buf[32] = {0};
+  int t = 0;
 
-static void buffer_append(Buffer *buf, const char *src, usize len) {
-  if (buf->len + len >= buf->cap) {
-    buf->cap = (buf->cap * 2) + len;
-    buf->data = (char *)realloc(buf->data, buf->cap);
+  /* Parse type name until ':' or '.' or '}' */
+  while (*p && *p != ':' && *p != '.' && *p != '}') {
+    if (t < (int)sizeof(type_buf) - 1)
+      type_buf[t++] = *p;
+    p++;
   }
-  memcpy(buf->data + buf->len, src, len);
-  buf->len += len;
-}
+  type_buf[t] = '\0';
+  spec.type = _get_format_type(type_buf);
 
-static FormatSpec __parse_spec(const char **fmt) {
-  FormatSpec spec = {FMT_INVALID, 0, -1, 0};
-  const char *p = *fmt;
-
-  switch (p[0]) {
-  case 'i':
-    p++;
-    if (p[0] == '8') {
-      spec.type = FMT_I8;
+  /* Parse optional precision or alternative format */
+  if (*p == '.') {
+    p++; /* skip '.' */
+    char prec_buf[8] = {0};
+    int pt = 0;
+    /* If negative sign is encountered, mark invalid */
+    if (*p == '-') {
+      spec.valid = 0;
+    }
+    while (*p && *p != '}') {
+      if (pt < (int)sizeof(prec_buf) - 1)
+        prec_buf[pt++] = *p;
       p++;
-    } else if (p[0] == '1' && p[1] == '6') {
-      spec.type = FMT_I16;
-      p += 2;
-    } else if (p[0] == '3' && p[1] == '2') {
-      spec.type = FMT_I32;
-      p += 2;
-    } else if (p[0] == '6' && p[1] == '4') {
-      spec.type = FMT_I64;
-      p += 2;
     }
-    break;
-  case 'u':
+    prec_buf[pt] = '\0';
+    spec.precision = atoi(prec_buf);
+  } else if (*p == ':') {
+    p++; /* skip ':' */
+    spec.alt = *p;
     p++;
-    if (p[0] == '8') {
-      spec.type = FMT_U8;
-      p++;
-    } else if (p[0] == '1' && p[1] == '6') {
-      spec.type = FMT_U16;
-      p += 2;
-    } else if (p[0] == '3' && p[1] == '2') {
-      spec.type = FMT_U32;
-      p += 2;
-    } else if (p[0] == '6' && p[1] == '4') {
-      spec.type = FMT_U64;
-      p += 2;
-    }
-    break;
-  case 'f':
-    p++;
-    if (p[0] == '3' && p[1] == '2') {
-      spec.type = FMT_F32;
-      p += 2;
-    } else if (p[0] == '6' && p[1] == '4') {
-      spec.type = FMT_F64;
-      p += 2;
-    } else if (p[0] == '1' && p[1] == '2' && p[2] == '8') {
-      spec.type = FMT_F128;
-      p += 3;
-    }
-    break;
-  case 's':
-    spec.type = FMT_STRING;
-    p++;
-    break;
-  case 'c':
-    spec.type = FMT_CHAR;
-    p++;
-    break;
-  case 'x':
-  case 'X':
-    spec.uppercase = (p[0] == 'X');
-    p++;
-    if (p[0] == '8') {
-      spec.type = FMT_HEX8;
-      p++;
-    } else if (p[0] == '1' && p[1] == '6') {
-      spec.type = FMT_HEX16;
-      p += 2;
-    } else if (p[0] == '3' && p[1] == '2') {
-      spec.type = FMT_HEX32;
-      p += 2;
-    } else if (p[0] == '6' && p[1] == '4') {
-      spec.type = FMT_HEX64;
-      p += 2;
-    }
-    break;
-
-  case 'p':
-  case 'P':
-    spec.uppercase = (p[0] == 'P');
-
-    p++;
-    if (p[0] == '8') {
-      spec.type = FMT_PTR8;
-      p++;
-    } else if (p[0] == '1' && p[1] == '6') {
-      spec.type = FMT_PTR16;
-      p += 2;
-    } else if (p[0] == '3' && p[1] == '2') {
-      spec.type = FMT_PTR32;
-      p += 2;
-    } else if (p[0] == '6' && p[1] == '4') {
-      spec.type = FMT_PTR64;
-      p += 2;
-    }
-    break;
-
-  case 'b':
-  case 'B':
-    spec.uppercase = (p[0] == 'B');
-    p++;
-    if (p[0] == '8') {
-      spec.type = FMT_BIN8;
-      p++;
-    } else if (p[0] == '1' && p[1] == '6') {
-      spec.type = FMT_BIN16;
-      p += 2;
-    } else if (p[0] == '3' && p[1] == '2') {
-      spec.type = FMT_BIN32;
-      p += 2;
-    } else if (p[0] == '6' && p[1] == '4') {
-      spec.type = FMT_BIN64;
-      p += 2;
-    }
-    break;
-
-  default:
-    return spec;
   }
-
-  while (p[0]) {
-    if (p[0] == '.') {
-      if (!(spec.type >= FMT_F32 && spec.type <= FMT_F128))
-        break;
-      spec.precision = 0;
-      p++;
-      while (p[0] >= '0' && p[0] <= '9') {
-        spec.precision = spec.precision * 10 + (p[0] - '0');
-        p++;
-      }
-    } else if (p[0] == '}')
-      break;
-    else
-      p++;
+  if (*p == '}') {
+    p++; /* skip '}' */
+  } else {
+    /* Malformed: missing closing brace */
+    spec.valid = 0;
   }
-
-  *fmt = p;
+  *fmt_ptr = p;
   return spec;
 }
 
-static char *__format_value(FormatSpec spec, va_list *args) {
-  Buffer buf = buffer_create(512);
-  char num_buf[512];
-  char *output = NULL;
-  usize len = 0;
-
-  switch (spec.type) {
-
-  // Integer
-  case FMT_I8:
-    len =
-        snprintf(num_buf, sizeof(num_buf), "%" PRId8, (i8)va_arg(*args, usize));
-    break;
-  case FMT_I16:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRId16,
-                   (i16)va_arg(*args, usize));
-    break;
-  case FMT_I32:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRId32,
-                   (i32)va_arg(*args, usize));
-    break;
-  case FMT_I64:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRId64,
-                   (i64)va_arg(*args, usize));
-    break;
-  case FMT_U8:
-    len =
-        snprintf(num_buf, sizeof(num_buf), "%" PRIu8, (u8)va_arg(*args, usize));
-    break;
-  case FMT_U16:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu16,
-                   (u16)va_arg(*args, usize));
-    break;
-  case FMT_U32:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu32,
-                   (u32)va_arg(*args, usize));
-    break;
-  case FMT_U64:
-    len = snprintf(num_buf, sizeof(num_buf), "%" PRIu64,
-                   (u64)va_arg(*args, usize));
-    break;
-
-  // Float
-  case FMT_F32:
-    len = snprintf(num_buf, sizeof(num_buf), "%.*f", spec.precision,
-                   va_arg(*args, f64));
-    break;
-  case FMT_F64:
-    len = snprintf(num_buf, sizeof(num_buf), "%.*f", spec.precision,
-                   va_arg(*args, f64));
-    break;
-  case FMT_F128:
-    len = snprintf(num_buf, sizeof(num_buf), "%.*Lf", spec.precision,
-                   va_arg(*args, f128));
-    break;
-
-  // String
-  case FMT_STRING: {
-    const char *s = va_arg(*args, const char *);
-    len = s ? strlen(s) : 6;
-    output = (char *)malloc(len + 1);
-    if (output)
-      snprintf(output, len + 1, "%s", s ? s : "(null)");
-    break;
+static void _print_binary(FILE *f, unsigned long long value, usize group,
+                          usize total_bits) {
+  char buf[256];
+  int idx = 0;
+  for (int i = total_bits - 1; i >= 0; i--) {
+    buf[idx++] = (value & (1ULL << i)) ? '1' : '0';
+    if (group && i && (i % 4 == 0))
+      buf[idx++] = '_';
   }
-
-  // Char
-  case FMT_CHAR: {
-    char c = (char)va_arg(*args, usize);
-    len = snprintf(num_buf, sizeof(num_buf), "%c", c);
-
-    break;
-  }
-
-  // Hex
-  case FMT_HEX8: {
-    u8 val = (u8)va_arg(*args, usize);
-    len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%02X" : "%02x",
-                   val);
-    break;
-  }
-  case FMT_HEX16: {
-    u16 val = (u16)va_arg(*args, usize);
-    len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%04X" : "%04x",
-                   val);
-    break;
-  }
-  case FMT_HEX32: {
-    u32 val = va_arg(*args, usize);
-    len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%08X" : "%08x",
-                   val);
-    break;
-  }
-  case FMT_HEX64: {
-    u64 val = va_arg(*args, usize);
-    len = snprintf(num_buf, sizeof(num_buf),
-                   spec.uppercase ? "%016" PRIX64 : "%016" PRIx64, val);
-    break;
-  }
-
-  // Pointer
-  case FMT_PTR8: {
-    u8 val = (u8)va_arg(*args, usize);
-    len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%02X" : "%02x",
-                   val);
-    break;
-  }
-  case FMT_PTR16: {
-    u16 val = (u16)va_arg(*args, usize);
-    len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%04X" : "%04x",
-                   val);
-    break;
-  }
-  case FMT_PTR32: {
-    u32 val = va_arg(*args, usize);
-    len = snprintf(num_buf, sizeof(num_buf), spec.uppercase ? "%08X" : "%08x",
-                   val);
-    break;
-  }
-  case FMT_PTR64: {
-    u64 val = va_arg(*args, usize);
-    len = snprintf(num_buf, sizeof(num_buf),
-                   spec.uppercase ? "%016" PRIX64 : "%016" PRIx64, val);
-    break;
-  }
-
-  // Binary
-  case FMT_BIN8:
-  case FMT_BIN16:
-  case FMT_BIN32:
-  case FMT_BIN64: {
-    u64 value = 0;
-    int bits = 0;
-    switch (spec.type) {
-    case FMT_BIN8:
-      value = (u8)va_arg(*args, usize);
-      bits = 8;
-      break;
-    case FMT_BIN16:
-      value = (u16)va_arg(*args, usize);
-      bits = 16;
-      break;
-    case FMT_BIN32:
-      value = va_arg(*args, usize);
-      bits = 32;
-      break;
-    case FMT_BIN64:
-      value = va_arg(*args, usize);
-      bits = 64;
-      break;
-    default:
-      return NULL;
-    }
-
-    char tmp[128];
-    int pos = 0;
-    for (int i = bits - 1; i >= 0; i--) {
-      tmp[pos++] = (value & ((u64)1 << i)) ? '1' : '0';
-      if (spec.uppercase && i > 0 && i % 4 == 0)
-        tmp[pos++] = '_';
-    }
-    tmp[pos] = '\0';
-    len = snprintf(num_buf, sizeof(num_buf), "%s", tmp);
-
-    if (!output) {
-      output = (char *)malloc(len + 1);
-      if (output) {
-        memcpy(output, num_buf, len);
-        output[len] = '\0';
-      }
-    }
-    buffer_free(&buf);
-    return output ? output : (char *)malloc(1);
-  }
-
-  default:
-    return NULL;
-  }
-
-  if (!output) {
-    output = (char *)malloc(len + 1);
-    if (output) {
-      memcpy(output, num_buf, len);
-      output[len] = '\0';
-    }
-  }
-  buffer_free(&buf);
-  return output ? output : (char *)malloc(1);
+  buf[idx] = '\0';
+  fputs(buf, f);
 }
 
-static void __vprint(FILE *stream, const char *fmt, va_list args) {
-  Buffer buf = buffer_create(256);
-  const char *start = fmt;
-  va_list args_copy;
-  va_copy(args_copy, args);
+static void _print_float_binary_f32(FILE *f, f32 value, usize group) {
+  union {
+    f32 f;
+    u32 i;
+  } u = {.f = value};
+  _print_binary(f, u.i, group, 32);
+}
 
-  while (*fmt) {
-    if (*fmt == '{') {
-      if (fmt[1] == '{') {
-        buffer_append(&buf, start, fmt - start);
-        buffer_append(&buf, "{", 1);
-        fmt += 2;
-        start = fmt;
-      } else {
-        buffer_append(&buf, start, fmt - start);
-        const char *spec_start = fmt;
-        fmt++;
-        const char *spec_end = fmt;
-        while (*spec_end && *spec_end != '}')
-          spec_end++;
+static void _print_float_binary_f64(FILE *f, f64 value, usize group) {
+  union {
+    f64 f;
+    u64 i;
+  } u = {.f = value};
+  _print_binary(f, u.i, group, 64);
+}
 
-        if (*spec_end == '}') {
-          const char *spec_content = fmt;
-          FormatSpec spec = __parse_spec(&spec_content);
+static void _print_float_binary_f128(FILE *f, f128 value, usize group) {
+  /* For f128, use memcpy to extract bytes.
+     We'll print the bits in big-endian order. */
+  unsigned char bytes[sizeof(f128)];
+  memcpy(bytes, &value, sizeof(f128));
+  char buf[256];
+  int idx = 0;
+  for (int byte = sizeof(f128) - 1; byte >= 0; byte--) {
+    for (int bit = 7; bit >= 0; bit--) {
+      buf[idx++] = (bytes[byte] & (1 << bit)) ? '1' : '0';
+      int current_bit = byte * 8 + bit;
+      if (group && current_bit && (current_bit % 4 == 0))
+        buf[idx++] = '_';
+    }
+  }
+  buf[idx] = '\0';
+  fputs(buf, f);
+}
 
-          if (spec.type == FMT_INVALID || spec_content != spec_end) {
-            buffer_append(&buf, spec_start, spec_end - spec_start + 1);
-          } else {
-            char *value = __format_value(spec, &args_copy);
-            if (value) {
-              buffer_append(&buf, value, strlen(value));
-              free(value);
-            }
-          }
-          fmt = spec_end + 1;
-        } else {
-          buffer_append(&buf, "{", 1);
+/*========================================================================*/
+/*                    Main Format Processor Function                    */
+/*========================================================================*/
+
+static void _vprint(FILE *f, const char *fmt, va_list args) {
+  const char *p = fmt;
+  while (*p) {
+    if (*p == '{') {
+      /* Handle escaped '{{' */
+      if (*(p + 1) == '{') {
+        fputc('{', f);
+        p += 2;
+        continue;
+      }
+      const char *placeholder_start = p;
+      p++; /* Skip '{' */
+      FormatSpec spec = _parse_format_spec(&p);
+      /* Validate specifier combinations */
+      int invalid = 0;
+      switch (spec.type) {
+      case SPEC_F32:
+      case SPEC_F64:
+      case SPEC_F128:
+        /* For floats, alt, if specified, must be 'b' or 'B' or none.
+         * Precision, if specified, must be >= 0 (already ensured not negative
+         * in parsing).
+         */
+        if (spec.alt && spec.alt != 'b' && spec.alt != 'B') {
+          invalid = 1;
         }
-        start = fmt;
+        break;
+      case SPEC_C:
+      case SPEC_S:
+        /* char and string must not have alt or precision */
+        if (spec.alt || spec.precision != -1)
+          invalid = 1;
+        break;
+      case SPEC_I32:
+      case SPEC_U32:
+      case SPEC_I64:
+      case SPEC_U64:
+      case SPEC_I16:
+      case SPEC_U16:
+      case SPEC_I8:
+      case SPEC_U8:
+      case SPEC_P:
+      case SPEC_CAP_P:
+        /* Integer types must not have precision */
+        if (spec.precision != -1)
+          invalid = 1;
+        break;
+      default:
+        invalid = 1;
+        break;
       }
-    } else if (*fmt == '}') {
-      if (fmt[1] == '}') {
-        buffer_append(&buf, start, fmt - start);
-        buffer_append(&buf, "}", 1);
-        fmt += 2;
-        start = fmt;
-      } else {
-        buffer_append(&buf, start, fmt - start + 1);
-        fmt++;
-        start = fmt;
+      if (!spec.valid)
+        invalid = 1;
+      if (invalid) {
+        /* Invalid specifier: print the placeholder literally */
+        size_t len = p - placeholder_start;
+        fwrite(placeholder_start, 1, len, f);
+        continue;
       }
+
+      /* Process valid specifiers */
+      switch (spec.type) {
+      case SPEC_I32: {
+        i32 value = va_arg(args, i32);
+        if (spec.alt == 'x' || spec.alt == 'X') {
+          char buf[32];
+          int width = 8;
+          if (spec.alt == 'X')
+            snprintf(buf, sizeof(buf), "%0*X", width, (u32)value);
+          else
+            snprintf(buf, sizeof(buf), "%0*x", width, (u32)value);
+          fputs(buf, f);
+        } else if (spec.alt == 'b' || spec.alt == 'B') {
+          _print_binary(f, (u32)value, (spec.alt == 'B'), 32);
+        } else {
+          char buf[32];
+          snprintf(buf, sizeof(buf), "%" PRId32, value);
+          fputs(buf, f);
+        }
+        break;
+      }
+      case SPEC_U32: {
+        u32 value = va_arg(args, u32);
+        if (spec.alt == 'x' || spec.alt == 'X') {
+          char buf[32];
+          int width = 8;
+          if (spec.alt == 'X')
+            snprintf(buf, sizeof(buf), "%0*X", width, value);
+          else
+            snprintf(buf, sizeof(buf), "%0*x", width, value);
+          fputs(buf, f);
+        } else if (spec.alt == 'b' || spec.alt == 'B') {
+          _print_binary(f, value, (spec.alt == 'B'), 32);
+        } else {
+          char buf[32];
+          snprintf(buf, sizeof(buf), "%" PRIu32, value);
+          fputs(buf, f);
+        }
+        break;
+      }
+      case SPEC_I64:
+      case SPEC_P: { /* {p} acts as {i64:x} */
+        i64 value = va_arg(args, i64);
+        if (spec.alt == 'x' || spec.alt == 'X' || spec.type == SPEC_P) {
+          char buf[40];
+          int width = 16;
+          if (spec.alt == 'X' || spec.type == SPEC_CAP_P)
+            snprintf(buf, sizeof(buf), "%0*llX", width,
+                     (unsigned long long)(u64)value);
+          else
+            snprintf(buf, sizeof(buf), "%0*llx", width,
+                     (unsigned long long)(u64)value);
+          fputs(buf, f);
+        } else if (spec.alt == 'b' || spec.alt == 'B') {
+          _print_binary(f, (u64)value, (spec.alt == 'B'), 64);
+        } else {
+          char buf[40];
+          snprintf(buf, sizeof(buf), "%" PRId64, value);
+          fputs(buf, f);
+        }
+        break;
+      }
+      case SPEC_U64:
+      case SPEC_CAP_P: { /* {P} acts as {i64:X} */
+        u64 value = va_arg(args, u64);
+        if (spec.alt == 'x' || spec.alt == 'X' || spec.type == SPEC_CAP_P) {
+          char buf[40];
+          int width = 16;
+          if (spec.alt == 'X' || spec.type == SPEC_CAP_P)
+            snprintf(buf, sizeof(buf), "%0*llX", width,
+                     (unsigned long long)value);
+          else
+            snprintf(buf, sizeof(buf), "%0*llx", width,
+                     (unsigned long long)value);
+          fputs(buf, f);
+        } else if (spec.alt == 'b' || spec.alt == 'B') {
+          _print_binary(f, value, (spec.alt == 'B'), 64);
+        } else {
+          char buf[40];
+          snprintf(buf, sizeof(buf), "%" PRIu64, value);
+          fputs(buf, f);
+        }
+        break;
+      }
+      case SPEC_I16: {
+        i32 value = va_arg(args, int); /* promoted */
+        if (spec.alt == 'x' || spec.alt == 'X') {
+          char buf[24];
+          int width = 4;
+          if (spec.alt == 'X')
+            snprintf(buf, sizeof(buf), "%0*X", width, (u16)value);
+          else
+            snprintf(buf, sizeof(buf), "%0*x", width, (u16)value);
+          fputs(buf, f);
+        } else if (spec.alt == 'b' || spec.alt == 'B') {
+          _print_binary(f, (u16)value, (spec.alt == 'B'), 16);
+        } else {
+          char buf[24];
+          snprintf(buf, sizeof(buf), "%" PRId16, (i16)value);
+          fputs(buf, f);
+        }
+        break;
+      }
+      case SPEC_U16: {
+        i32 value = va_arg(args, int);
+        if (spec.alt == 'x' || spec.alt == 'X') {
+          char buf[24];
+          int width = 4;
+          if (spec.alt == 'X')
+            snprintf(buf, sizeof(buf), "%0*X", width, (u16)value);
+          else
+            snprintf(buf, sizeof(buf), "%0*x", width, (u16)value);
+          fputs(buf, f);
+        } else if (spec.alt == 'b' || spec.alt == 'B') {
+          _print_binary(f, (u16)value, (spec.alt == 'B'), 16);
+        } else {
+          char buf[24];
+          snprintf(buf, sizeof(buf), "%" PRIu16, (u16)value);
+          fputs(buf, f);
+        }
+        break;
+      }
+      case SPEC_I8: {
+        int value = va_arg(args, int);
+        if (spec.alt == 'x' || spec.alt == 'X') {
+          char buf[16];
+          int width = 2;
+          if (spec.alt == 'X')
+            snprintf(buf, sizeof(buf), "%0*X", width, (u8)value);
+          else
+            snprintf(buf, sizeof(buf), "%0*x", width, (u8)value);
+          fputs(buf, f);
+        } else if (spec.alt == 'b' || spec.alt == 'B') {
+          _print_binary(f, (u8)value, (spec.alt == 'B'), 8);
+        } else {
+          char buf[16];
+          snprintf(buf, sizeof(buf), "%" PRId8, (i8)value);
+          fputs(buf, f);
+        }
+        break;
+      }
+      case SPEC_U8: {
+        int value = va_arg(args, int);
+        if (spec.alt == 'x' || spec.alt == 'X') {
+          char buf[16];
+          int width = 2;
+          if (spec.alt == 'X')
+            snprintf(buf, sizeof(buf), "%0*X", width, (u8)value);
+          else
+            snprintf(buf, sizeof(buf), "%0*x", width, (u8)value);
+          fputs(buf, f);
+        } else if (spec.alt == 'b' || spec.alt == 'B') {
+          _print_binary(f, (u8)value, (spec.alt == 'B'), 8);
+        } else {
+          char buf[16];
+          snprintf(buf, sizeof(buf), "%" PRIu8, (u8)value);
+          fputs(buf, f);
+        }
+        break;
+      }
+      case SPEC_F32: {
+        f32 value = (f32)va_arg(args, double); /* promoted */
+        if (spec.alt == 'b' || spec.alt == 'B') {
+          _print_float_binary_f32(f, value, (spec.alt == 'B'));
+        } else {
+          char buf[64];
+          if (spec.precision >= 0)
+            snprintf(buf, sizeof(buf), "%.*f", spec.precision, value);
+          else
+            snprintf(buf, sizeof(buf), "%f", value);
+          fputs(buf, f);
+        }
+        break;
+      }
+      case SPEC_F64: {
+        f64 value = va_arg(args, f64);
+        if (spec.alt == 'b' || spec.alt == 'B') {
+          _print_float_binary_f64(f, value, (spec.alt == 'B'));
+        } else {
+          char buf[64];
+          if (spec.precision >= 0)
+            snprintf(buf, sizeof(buf), "%.*f", spec.precision, value);
+          else
+            snprintf(buf, sizeof(buf), "%f", value);
+          fputs(buf, f);
+        }
+        break;
+      }
+      case SPEC_F128: {
+        f128 value = va_arg(args, f128);
+        if (spec.alt == 'b' || spec.alt == 'B') {
+          _print_float_binary_f128(f, value, (spec.alt == 'B'));
+        } else {
+          char buf[80];
+          if (spec.precision >= 0)
+            snprintf(buf, sizeof(buf), "%.*Lf", spec.precision, value);
+          else
+            snprintf(buf, sizeof(buf), "%Lf", value);
+          fputs(buf, f);
+        }
+        break;
+      }
+      case SPEC_C: {
+        int ch = va_arg(args, int);
+        fputc(ch, f);
+        break;
+      }
+      case SPEC_S: {
+        const char *str = va_arg(args, const char *);
+        fputs(str ? str : "(null)", f);
+        break;
+      }
+      default: {
+        /* Should not happen; fallback to printing literal */
+        size_t len = p - placeholder_start;
+        fwrite(placeholder_start, 1, len, f);
+        break;
+      }
+      }
+    } else if (*p == '}' && *(p + 1) == '}') {
+      /* Handle escaped '}}' */
+      fputc('}', f);
+      p += 2;
     } else {
-      fmt++;
+      fputc(*p, f);
+      p++;
     }
   }
-
-  buffer_append(&buf, start, fmt - start);
-  fwrite(buf.data, 1, buf.len, stream);
-  buffer_free(&buf);
-  va_end(args_copy);
 }
 
+/*========================================================================*/
+/*                            Public API                                */
+/*========================================================================*/
+
+/* Print to stdout */
 static inline void print(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  __vprint(stdout, fmt, args);
+  _vprint(stdout, fmt, args);
   va_end(args);
 }
 
+/* Print to stdout with a newline appended */
 static inline void println(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  __vprint(stdout, fmt, args);
+  _vprint(stdout, fmt, args);
+  va_end(args);
   fputc('\n', stdout);
+}
+
+/* Print to a specified FILE stream */
+static inline void fprint(FILE *f, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  _vprint(f, fmt, args);
   va_end(args);
 }
 
-static inline void fprint(FILE *stream, const char *fmt, ...) {
+/* Print to a specified FILE stream with a newline appended */
+static inline void fprintln(FILE *f, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  __vprint(stream, fmt, args);
+  _vprint(f, fmt, args);
   va_end(args);
-}
-
-static inline void fprintln(FILE *stream, const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  __vprint(stream, fmt, args);
-  fputc('\n', stream);
-  va_end(args);
+  fputc('\n', f);
 }
 
 #endif // DECAY_H
