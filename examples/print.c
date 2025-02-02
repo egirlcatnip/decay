@@ -1,13 +1,8 @@
 #include "../decay.h"
 
-void print_limits();
-void print_edge_cases();
-void print_hex();
-void print_bin();
-void print_unicode();
-
 int main() {
-  i32 num = (i32)256;
+  i32 num = (i32)666;
+  u8 byte = (u8)111;
   f32 pi = (f32)3.1415;
   f64 e = (f64)2.718281828459045;
   f128 phi = (f128)1.618033988749895;
@@ -41,18 +36,17 @@ int main() {
   println("");
 
   println("i32 binary:          \t{i32:b}", num);
-  println("i32 binary with _:   \t{i32:B}", num);
-  println("i32 lowercase hex:   \t{i32:x}", num);
-  println("i32 uppercase hex:   \t{i32:x}", num);
+  println("i8 binary with _:   \t{i8:B}", byte);
+  println("i16 lowercase hex:   \t{i16:x}", byte);
+  println("i16 uppercase hex:   \t{i16:x}", byte);
   println("f32 binary:          \t{f32:b}", pi);
+  println("");
 
   void *ptr = &num;
   println("*ptr lower:          \t{p}", ptr);
   println("*ptr upper:          \t{P}", ptr);
   printf("*ptr system:          \t%p \n", ptr);
   println("");
-
-  print_edge_cases();
 
   return 0;
 }
