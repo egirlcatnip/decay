@@ -7,10 +7,10 @@ void print_bin();
 void print_unicode();
 
 int main() {
-  i32 num = 256;
-  f32 pi = 3.1415;
-  f64 e = 2.718281828459045;
-  f128 phi = 1.618033988749895;
+  i32 num = (i32)256;
+  f32 pi = (f32)3.1415;
+  f64 e = (f64)2.718281828459045;
+  f128 phi = (f128)1.618033988749895;
 
   // Basic string printing
   print("{s}", "Hello ");
@@ -26,10 +26,10 @@ int main() {
           u8: {u8}     \n\
           f64: {f64.5} \n\
           String: {s}  \n\
-          Char: {c}  \n\
-          Char: {c}  \n\
+          Char: {c}    \n\
+          Char: {c}    \n\
 ",
-          -num, (u8)num - 128, pi, "Decay", 'Z', (u16)64);
+          num, (u8)num - 128, pi, "Decay", 'Z', (u16)64);
   println("");
 
   // Floating-point printing
@@ -78,6 +78,7 @@ void print_hex() {
 
 void print_bin() {
   println("i8 bin:  (i8)123");
+  println("a");
   println("{i8:b}", (i8)123);
   println("i8 bin:  (i8)-123");
   println("u16:bin with _: (u16)12345");
@@ -109,15 +110,15 @@ void print_edge_cases() {
 
   println("Invalid:          \t{s.0}", 0);
   println("Invalid:          \t{c.0}", '&');
+  println("Invalid:          \t{p.0}", 3);
   println("Invalid:          \t{i32.0}", 1);
   println("Invalid:          \t{i32:b.0}", 2);
-  println("Invalid:          \t{i32:p.0}", 3);
   println("Invalid:          \t{i32:x.0}", 4);
   println("Invalid:          \t{f32.-1}", 5);
   println("Invalid:          \t{invalid}", 6);
-  // println("Invalid:          \t{s}", 6);
   println("");
 }
+
 void print_limits() {
 
   // Type limits

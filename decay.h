@@ -10,7 +10,7 @@
 #include <string.h>
 
 /*========================================================================*/
-/*                          Type Definitions                            */
+/*                          Type Definitions                              */
 /*========================================================================*/
 
 /* Fixed width integer and floating point types */
@@ -80,7 +80,7 @@ typedef struct {
 } FormatSpec;
 
 /*========================================================================*/
-/*                         Helper Prototypes                            */
+/*                         Helper Prototypes                              */
 /*========================================================================*/
 static FormatSpec _parse_format_spec(const char **fmt_ptr);
 static FormatType _get_format_type(const char *type_str);
@@ -93,7 +93,7 @@ static void _print_float_binary_f64(FILE *f, f64 value, usize group);
 static void _print_float_binary_f128(FILE *f, f128 value, usize group);
 
 /*========================================================================*/
-/*                      Helper Implementations                          */
+/*                      Helper Implementations                            */
 /*========================================================================*/
 
 static FormatType _get_format_type(const char *type_str) {
@@ -184,7 +184,7 @@ static void _print_binary(FILE *f, unsigned long long value, usize group,
                           usize total_bits) {
   char buf[256];
   int idx = 0;
-  for (int i = total_bits - 1; i >= 0; i--) {
+  for (isize i = (isize)(total_bits - 1); i >= 0; i--) {
     buf[idx++] = (value & (1ULL << i)) ? '1' : '0';
     if (group && i && (i % 4 == 0))
       buf[idx++] = '_';
@@ -229,7 +229,7 @@ static void _print_float_binary_f128(FILE *f, f128 value, usize group) {
 }
 
 /*========================================================================*/
-/*                    Main Format Processor Function                    */
+/*                    Main Format Processor Function                      */
 /*========================================================================*/
 
 static void _vprint(FILE *f, const char *fmt, va_list args) {
@@ -287,7 +287,7 @@ static void _vprint(FILE *f, const char *fmt, va_list args) {
         invalid = 1;
       if (invalid) {
         /* Invalid specifier: print the placeholder literally */
-        size_t len = p - placeholder_start;
+        usize len = (usize)(p - placeholder_start);
         fwrite(placeholder_start, 1, len, f);
         continue;
       }
@@ -506,7 +506,7 @@ static void _vprint(FILE *f, const char *fmt, va_list args) {
       }
       default: {
         /* Should not happen; fallback to printing literal */
-        size_t len = p - placeholder_start;
+        usize len = (usize)(p - placeholder_start);
         fwrite(placeholder_start, 1, len, f);
         break;
       }
@@ -523,7 +523,7 @@ static void _vprint(FILE *f, const char *fmt, va_list args) {
 }
 
 /*========================================================================*/
-/*                            Public API                                */
+/*                            Public API                                  */
 /*========================================================================*/
 
 /* Print to stdout */
