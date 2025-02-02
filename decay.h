@@ -360,7 +360,7 @@ static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
     else if (spec.precision >= 0)
       fprintf(f, "%.*f", spec.precision, val);
     else
-      fprintf(f, "%f", val);
+      fprintf(f, "%g", val);
   } break;
 
   case FMT_F64: {
@@ -372,7 +372,7 @@ static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
     else if (spec.precision >= 0)
       fprintf(f, "%.*f", spec.precision, val);
     else
-      fprintf(f, "%f", val);
+      fprintf(f, "%g", val);
   } break;
 
   case FMT_F128: {
@@ -384,7 +384,7 @@ static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
     else if (spec.precision >= 0)
       fprintf(f, "%.*Lf", spec.precision, val);
     else
-      fprintf(f, "%Lf", val);
+      fprintf(f, "%Lg", val);
   } break;
 
   case FMT_CHAR: {
