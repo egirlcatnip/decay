@@ -78,10 +78,10 @@ void print_hex() {
 
 void print_bin() {
   println("i8 bin:  (i8)123");
-  println("a");
   println("{i8:b}", (i8)123);
   println("i8 bin:  (i8)-123");
-  println("u16:bin with _: (u16)12345");
+  println("{i8:b}", (i8)-123);
+  println("u16 bin with _: (u16)12345");
   println("{u16:B}", (u16)12345);
   println("u32 bin: (u32)1234567");
   println("{u32:b}", (u32)1234567);
@@ -96,7 +96,7 @@ void print_bin() {
 void print_edge_cases() {
   println("Empty string:     \t\"{s}\"", "");
   println("Null string:      \t\"{s}\"", NULL);
-  println("Braces:           \t{{i32}} {i32}", 42);
+  println("Escaped:        \t{{i32}}", 1);
   println("Braces:           \t{{");
   println("Braces:           \t{");
   println("Braces:           \t}}");
@@ -106,6 +106,7 @@ void print_edge_cases() {
   println("Malformed:        \t{i32", 42);
   println("Malformed:        \ti32}", 42);
   println("Excess (2 args):  \t{i32}", 42, 64);
+
   println("");
 
   println("Invalid:          \t{s.0}", 0);
@@ -153,7 +154,5 @@ void print_limits() {
 
   println("u64 ");
   println("Min: {u64}\nMax: {u64}", U64_MIN, U64_MAX);
-  println("");
-
   println("");
 }
