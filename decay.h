@@ -106,7 +106,7 @@ static FormatSpec parse_specifier(const char **fmt) {
     p++;
   isize spec_len = (*p == '}') ? (isize)(p - *fmt + 1) : (isize)(p - *fmt);
 
-  p = *fmt + 1; // Skip initial '{'
+  p = *fmt + 1;
 
   // Parse type name
   while (p[0] && p[0] != ':' && p[0] != '.' && p[0] != '}') {
@@ -138,14 +138,12 @@ static FormatSpec parse_specifier(const char **fmt) {
     }
   }
 
-  // Validate closing brace
   if (p[0] != '}') {
     spec.is_valid = false;
   } else {
     p++;
   }
 
-  // Type-specific validation
   if (spec.is_valid) {
     switch (spec.type) {
     case FMT_F32:
@@ -178,7 +176,6 @@ static FormatSpec parse_specifier(const char **fmt) {
     }
   }
 
-  // Always advance to end of specifier
   *fmt = spec_start + spec_len;
   return spec;
 }
@@ -232,13 +229,13 @@ static void print_quad_bits(FILE *f, f128 value, bool group) {
 
 /*Format Processing Core*/
 
-static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
+static void process_specifier(FILE *f, FormatSpec spec, va_list args) {
   if (!spec.is_valid)
     return;
 
   switch (spec.type) {
   case FMT_I32: {
-    i32 val = va_arg(*args, i32);
+    i32 val = va_arg(args, i32);
     if (spec.alt_fmt == 'x')
       fprintf(f, "%08x", (u32)val);
     else if (spec.alt_fmt == 'X')
@@ -252,7 +249,7 @@ static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
   } break;
 
   case FMT_U32: {
-    u32 val = va_arg(*args, u32);
+    u32 val = va_arg(args, u32);
     if (spec.alt_fmt == 'x')
       fprintf(f, "%08x", val);
     else if (spec.alt_fmt == 'X')
@@ -267,36 +264,36 @@ static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
 
   case FMT_I64:
   case FMT_PTR: {
-    i64 val = va_arg(*args, i64);
+    i64 val = va_arg(args, i64);
     if (spec.alt_fmt == 'x' || spec.type == FMT_PTR)
-      fprintf(f, "%016llx", (u64)val);
+      fprintf(f, "%016lx", val);
     else if (spec.alt_fmt == 'X')
-      fprintf(f, "%016llX", (u64)val);
+      fprintf(f, "%016lX", val);
     else if (spec.alt_fmt == 'b')
       print_bits(f, (u64)val, 64, false);
     else if (spec.alt_fmt == 'B')
       print_bits(f, (u64)val, 64, true);
     else
-      fprintf(f, "%lld", val);
+      fprintf(f, "%ld", val);
   } break;
 
   case FMT_U64:
   case FMT_PTR_UPPER: {
-    u64 val = va_arg(*args, u64);
+    u64 val = va_arg(args, u64);
     if (spec.alt_fmt == 'x' || spec.type == FMT_PTR_UPPER)
-      fprintf(f, "%016llX", val);
+      fprintf(f, "%016lX", val);
     else if (spec.alt_fmt == 'X')
-      fprintf(f, "%016llX", val);
+      fprintf(f, "%016lX", val);
     else if (spec.alt_fmt == 'b')
       print_bits(f, val, 64, false);
     else if (spec.alt_fmt == 'B')
       print_bits(f, val, 64, true);
     else
-      fprintf(f, "%llu", val);
+      fprintf(f, "%lu", val);
   } break;
 
   case FMT_I16: {
-    i32 val = va_arg(*args, i32);
+    i32 val = va_arg(args, i32);
     if (spec.alt_fmt == 'x')
       fprintf(f, "%04x", (u16)val);
     else if (spec.alt_fmt == 'X')
@@ -310,7 +307,7 @@ static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
   } break;
 
   case FMT_U16: {
-    u32 val = va_arg(*args, u32);
+    u32 val = va_arg(args, u32);
     if (spec.alt_fmt == 'x')
       fprintf(f, "%04x", (u16)val);
     else if (spec.alt_fmt == 'X')
@@ -324,7 +321,7 @@ static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
   } break;
 
   case FMT_I8: {
-    i32 val = va_arg(*args, i32);
+    i32 val = va_arg(args, i32);
     if (spec.alt_fmt == 'x')
       fprintf(f, "%02x", (u8)val);
     else if (spec.alt_fmt == 'X')
@@ -338,7 +335,7 @@ static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
   } break;
 
   case FMT_U8: {
-    u32 val = va_arg(*args, u32);
+    u32 val = va_arg(args, u32);
     if (spec.alt_fmt == 'x')
       fprintf(f, "%02x", (u8)val);
     else if (spec.alt_fmt == 'X')
@@ -352,7 +349,7 @@ static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
   } break;
 
   case FMT_F32: {
-    f32 val = (f32)va_arg(*args, f64);
+    f32 val = (f32)va_arg(args, f64);
     if (spec.alt_fmt == 'b')
       print_float_bits(f, val, false);
     else if (spec.alt_fmt == 'B')
@@ -364,7 +361,7 @@ static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
   } break;
 
   case FMT_F64: {
-    f64 val = va_arg(*args, f64);
+    f64 val = va_arg(args, f64);
     if (spec.alt_fmt == 'b')
       print_double_bits(f, val, false);
     else if (spec.alt_fmt == 'B')
@@ -376,7 +373,7 @@ static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
   } break;
 
   case FMT_F128: {
-    f128 val = va_arg(*args, f128);
+    f128 val = va_arg(args, f128);
     if (spec.alt_fmt == 'b')
       print_quad_bits(f, val, false);
     else if (spec.alt_fmt == 'B')
@@ -388,12 +385,12 @@ static void process_specifier(FILE *f, FormatSpec spec, va_list *args) {
   } break;
 
   case FMT_CHAR: {
-    i32 c = va_arg(*args, i32);
+    i32 c = va_arg(args, i32);
     fputc(c, f);
   } break;
 
   case FMT_STR: {
-    const char *s = va_arg(*args, const char *);
+    const char *s = va_arg(args, const char *);
     fputs(s ? s : "(null)", f);
   } break;
 
@@ -408,7 +405,6 @@ static void format_text(FILE *f, const char *fmt, va_list args) {
     if (*p == '{') {
       const char *spec_start = p;
 
-      // Handle escaped {{
       if (p[1] == '{') {
         fputc('{', f);
         p += 2;
@@ -420,7 +416,7 @@ static void format_text(FILE *f, const char *fmt, va_list args) {
       if (!spec.is_valid) {
         fwrite(spec_start, 1, (usize)(p - spec_start), f);
       } else {
-        process_specifier(f, spec, &args);
+        process_specifier(f, spec, args);
       }
     } else if (*p == '}') {
       if (p[1] == '}') {

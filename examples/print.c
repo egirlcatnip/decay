@@ -1,6 +1,6 @@
 #include "../decay.h"
 
-int main() {
+int main(void) {
   i32 num = (i32)666;
   u8 byte = (u8)111;
   f32 pi = (f32)3.1415;
