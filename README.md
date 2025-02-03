@@ -20,15 +20,14 @@ i32 main() {
     f64 e = 2.718281828459045;
 
     println("Hello, {s}", "World!");          //Hello, World!
-    println("Character: {c}", (u32)64);       //Character: @
+    println("Character: {c}", 64);            //Character: @
     println("");                              //
     println("Integer: {i32}", num);           //256
-    println("Float: {f64.6}", e);             //2.718282
-    println("Pointer: {p}", &num);            //00000012F6F8F7FC
-    println("Hex (u32): {u32:x}", (u32)num);  //000000FF
+    println("Float: {f64.4}", e);             //2.7182
+    println("Float: {f32}", 3.14);            //3.14
+    println("Pointer: {P}", &num);            //00000012F6F8F7FC
+    println("Hex (u32): {u32:X}", (u32)num);  //000000FF
     println("Binary (u8): {u8:b}", (u8)num);  //11111111
-
-
 
     return 0;
 }
@@ -60,6 +59,8 @@ i32 main() {
 | --------- | ----------------------- |
 | `{s}`     | String (char *)         |
 | `{c}`     | Character               |
+| `{p}`     | Architecture-dependent  |
+| `{P}`     | Architecture-dependent  |
 | `{i8}`    | 8-bit signed integer    |
 | `{i16}`   | 16-bit signed integer   |
 | `{i32}`   | 32-bit signed integer   |
@@ -71,7 +72,6 @@ i32 main() {
 | `{f32}`   | 32-bit floating-point   |
 | `{f64}`   | 64-bit floating-point   |
 | `{f128}`  | 128-bit floating-point  |
-| `{p}`     | Architecture-dependent  |
 
 ## Format Specifier Modifiers
 
